@@ -22,11 +22,25 @@ SimpleMBCompAudioProcessor::SimpleMBCompAudioProcessor()
                        )
 #endif
 {
-    compressor.attack = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter("Attack"));
-    compressor.release = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter("Release"));
-    compressor.threshold = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter("Threshold"));
-    compressor.ratio = dynamic_cast<juce::AudioParameterChoice*>(apvts.getParameter("Ratio"));
-    compressor.bypassed = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("Bypassed"));
+    using namespace Params;
+    const auto& params = GetParams();
+
+    auto floatHelper = [&apvts = this->apvts, &params](auto& param, const auto& paramName)
+    { param = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter(params.at(paramName))); };
+
+    auto choiceHelper = [&apvts = this->apvts, &params](auto& param, const auto& paramName)
+    { param = dynamic_cast<juce::AudioParameterChoice*>(apvts.getParameter(params.at(paramName))); };
+
+    auto boolHelper = [&apvts = this->apvts, &params](auto& param, const auto& paramName)
+    { param = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter(params.at(paramName))); };
+
+
+    floatHelper(compressor.attack, Names::Attack_Low_band);
+    floatHelper(compressor.release, Names::Release_Low_Band);
+    floatHelper(compressor.threshold, Names::Threshold_Low_Band);
+    choiceHelper(compressor.ratio, Names::Ratio_Low_Band);
+    boolHelper(compressor.bypassed, Names::Bypass_Low_Band);
+
 }
 
 SimpleMBCompAudioProcessor::~SimpleMBCompAudioProcessor()
@@ -156,17 +170,6 @@ void SimpleMBCompAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    //compressor.setAttack(attack->get());
-    //compressor.setRelease(release->get());
-    //compressor.setThreshold(threshold->get());
-    //compressor.setRatio( ratio->getCurrentChoiceName().getFloatValue() );
-
-    //auto block = juce::dsp::AudioBlock<float>(buffer);
-    //auto context = juce::dsp::ProcessContextReplacing<float>(block);
-
-    //context.isBypassed = bypassed->get();
-
-    //compressor.process(context);
     compressor.updateCompressorSettings();
     compressor.process(buffer);
 }
@@ -208,18 +211,21 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleMBCompAudioProcessor::
 {
     APVTS::ParameterLayout layout;
     using namespace juce;
+    using namespace Params;
+    const auto& params = GetParams();
 
     auto choices = std::vector<double>{ 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20, 25, 50, 100 };
     juce::StringArray sa;
     for (auto choice : choices)
         sa.add(juce::String(choice, 1));
 
-    layout.add(std::make_unique<AudioParameterFloat>("Threshold", "Threshold", NormalisableRange<float>(-60,12,1,1), 0));
-    layout.add(std::make_unique<AudioParameterFloat>("Attack",    "Attack",    NormalisableRange<float>(5, 500, 1, 1), 50));
-    layout.add(std::make_unique<AudioParameterFloat>("Release",   "Release",   NormalisableRange<float>(5, 500, 1, 1), 50));
-    layout.add(std::make_unique<AudioParameterChoice>("Ratio", "Ratio", sa, 3));
-
-    layout.add(std::make_unique<AudioParameterBool>("Bypassed", "Bypassed", false));
+    layout.add(std::make_unique<AudioParameterFloat>(params.at(Names::Threshold_Low_Band), params.at(Names::Threshold_Low_Band), NormalisableRange<float>(-60, 12, 1, 1), 0));
+    layout.add(std::make_unique<AudioParameterFloat>(params.at(Names::Attack_Low_band), params.at(Names::Attack_Low_band), NormalisableRange<float>(5, 500, 1, 1), 50));
+    layout.add(std::make_unique<AudioParameterFloat>(params.at(Names::Release_Low_Band), params.at(Names::Release_Low_Band), NormalisableRange<float>(5, 500, 1, 1), 50));
+    layout.add(std::make_unique<AudioParameterChoice>(params.at(Names::Ratio_Low_Band), params.at(Names::Ratio_Low_Band), sa, 3));
+    layout.add(std::make_unique<AudioParameterBool>(params.at(Names::Bypass_Low_Band), params.at(Names::Bypass_Low_Band), false));
+    
+    
     return layout;
 }
 
