@@ -239,12 +239,120 @@ juce::String RotarySliderWithLabels::getDisplayString() const
     return str;
 }
 
+void RotarySliderWithLabels::changeParam(juce::RangedAudioParameter *p)
+{
+    param = p;
+    repaint();
+}
+//==============================================================================
+juce::String RatioSlider::getDisplayString() const
+{
+    auto choiceParam = dynamic_cast<juce::AudioParameterChoice*>(param);
+
+    auto currentChoice = choiceParam->getCurrentChoiceName();
+
+    if (currentChoice.contains(".0"))
+        currentChoice = currentChoice.substring(0, currentChoice.indexOf("."));
+
+    currentChoice << ":1";
+
+    return currentChoice;
+}
+//==============================================================================
 Placeholder::Placeholder()
 {
     juce::Random r;
     customColor = juce::Colour(r.nextInt(255), r.nextInt(255), r.nextInt(255));
 }
+//==============================================================================
+CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeState& apv):
+    apvts(apv),
+    attackSlider(nullptr, " ms", "X"),
+    releaseSlider(nullptr, " ms", "R"),
+    thresholdSlider(nullptr, " dB", "T"),
+    ratioSlider(nullptr, " ")
+{
+    using namespace Params;
+    const auto& params = GetParams();
 
+    auto getParamHelper = [&params, &apvts = this->apvts](const auto& name) -> auto&
+    {
+        return getParam(apvts, params, name);
+    };
+
+    attackSlider.changeParam(&getParamHelper(Names::Attack_Mid_band));
+    releaseSlider.changeParam(&getParamHelper(Names::Release_Mid_Band));
+    thresholdSlider.changeParam(&getParamHelper(Names::Threshold_Mid_Band));
+    ratioSlider.changeParam(&getParamHelper(Names::Ratio_Mid_Band));
+
+    addLabelPairs(attackSlider.labels, getParamHelper(Names::Attack_Mid_band), " ms");
+    addLabelPairs(releaseSlider.labels, getParamHelper(Names::Release_Mid_Band), " ms");
+    addLabelPairs(thresholdSlider.labels, getParamHelper(Names::Threshold_Mid_Band), " dB");
+    
+    ratioSlider.labels.add({ 0.f, "1:1" });
+    auto ratioParam = dynamic_cast<juce::AudioParameterChoice*>(&getParamHelper(Names::Ratio_Mid_Band));
+    ratioSlider.labels.add({ 1.f, juce::String(ratioParam->choices.getReference(ratioParam->choices.size() - 1).getIntValue()) + ":1"});
+
+    auto makeAttachmentHelper = [&params, &apvts = this->apvts](auto& attachment, const auto& name, auto& slider)
+    {
+        makeAttachment(attachment, apvts, params, name, slider);
+    };
+
+    makeAttachmentHelper(attackSliderAttachment, Names::Attack_Mid_band, attackSlider);
+    makeAttachmentHelper(releaseSliderAttachment, Names::Release_Mid_Band, releaseSlider);
+    makeAttachmentHelper(thresholdSliderAttachment, Names::Threshold_Mid_Band, thresholdSlider);
+    makeAttachmentHelper(ratioSliderAttachment, Names::Ratio_Mid_Band, ratioSlider);
+
+    addAndMakeVisible(attackSlider);
+    addAndMakeVisible(thresholdSlider);
+    addAndMakeVisible(ratioSlider);
+    addAndMakeVisible(releaseSlider);
+}
+void CompressorBandControls::resized()
+{
+    using namespace juce;
+    auto bounds = getLocalBounds().reduced(5);
+
+    FlexBox flexBox;
+    flexBox.flexDirection = FlexBox::Direction::row;
+    flexBox.flexWrap = FlexBox::Wrap::noWrap;
+
+    auto spacer = FlexItem().withWidth(4);
+    auto endCap = FlexItem().withWidth(6);
+
+    flexBox.items.add(endCap);
+    flexBox.items.add(FlexItem(attackSlider).withFlex(1.f));
+    flexBox.items.add(spacer);
+    flexBox.items.add(FlexItem(releaseSlider).withFlex(1.f));
+    flexBox.items.add(spacer);
+    flexBox.items.add(FlexItem(thresholdSlider).withFlex(1.f));
+    flexBox.items.add(spacer);
+    flexBox.items.add(FlexItem(ratioSlider).withFlex(1.f));
+    flexBox.items.add(endCap);
+    flexBox.performLayout(bounds);
+}
+
+void drawModuleBackground(juce::Graphics& g, juce::Rectangle<int> bounds)
+{
+    using namespace juce;
+    g.setColour(Colours::darkblue);
+    g.fillAll();
+
+    auto localBounds = bounds;
+    bounds.reduce(3, 3);
+    g.setColour(Colours::slategrey);
+    g.fillRect(bounds.toFloat());
+
+    g.drawRect(localBounds);
+}
+
+void CompressorBandControls::paint(juce::Graphics& g)
+{
+    auto bounds = getLocalBounds();
+    drawModuleBackground(g, bounds);
+}
+
+//==============================================================================
 GlobalControls::GlobalControls(juce::AudioProcessorValueTreeState& apvts)
 {
     using namespace Params;
@@ -260,10 +368,10 @@ GlobalControls::GlobalControls(juce::AudioProcessorValueTreeState& apvts)
     auto& midHighParam = getParamHelper(Names::Mid_High_Crossover_Freq);
     auto& gainOutParam = getParamHelper(Names::Gain_Out);
 
-    inGainSlider = std::make_unique<RSWL>(gainInParam, "dB", "In");
-    lowMinXoverSlider = std::make_unique<RSWL>(lowMidParam, "Hz", "L->M");
-    midHighXoverSlider = std::make_unique<RSWL>(midHighParam, "Hz", "M->H");
-    outGainSlider = std::make_unique<RSWL>(gainOutParam, "dB", "Out");
+    inGainSlider = std::make_unique<RSWL>(&gainInParam, " dB", "In");
+    lowMinXoverSlider = std::make_unique<RSWL>(&lowMidParam, " Hz", "L->M");
+    midHighXoverSlider = std::make_unique<RSWL>(&midHighParam, " Hz", "M->H");
+    outGainSlider = std::make_unique<RSWL>(&gainOutParam, " dB", "Out");
 
     auto makeAttachmentHelper = [&params, &apvts](auto& attachment, const auto& name, auto& slider)
     {
@@ -275,10 +383,10 @@ GlobalControls::GlobalControls(juce::AudioProcessorValueTreeState& apvts)
     makeAttachmentHelper(midHighXoverSliderAttachment, Names::Mid_High_Crossover_Freq, *midHighXoverSlider);
     makeAttachmentHelper(outGainSliderAttachment, Names::Gain_Out, *outGainSlider);
 
-    addLabelPairs(inGainSlider->labels, gainInParam, "dB");
-    addLabelPairs(lowMinXoverSlider->labels, lowMidParam, "Hz");
-    addLabelPairs(midHighXoverSlider->labels, midHighParam, "Hz");
-    addLabelPairs(outGainSlider->labels, gainOutParam, "dB");
+    addLabelPairs(inGainSlider->labels, gainInParam, " dB");
+    addLabelPairs(lowMinXoverSlider->labels, lowMidParam, " Hz");
+    addLabelPairs(midHighXoverSlider->labels, midHighParam, " Hz");
+    addLabelPairs(outGainSlider->labels, gainOutParam, " dB");
 
     addAndMakeVisible(*inGainSlider);
     addAndMakeVisible(*lowMinXoverSlider);
@@ -288,18 +396,8 @@ GlobalControls::GlobalControls(juce::AudioProcessorValueTreeState& apvts)
 
 void GlobalControls::paint(juce::Graphics& g)
 {
-    using namespace juce;
     auto bounds = getLocalBounds();
-    g.setColour(Colours::darkblue);
-    g.fillAll();
-
-    auto localBounds = bounds;
-
-    bounds.reduce(3, 3);
-    g.setColour(Colours::slategrey);
-    g.fillRect(bounds.toFloat());
-
-    g.drawRect(localBounds);
+    drawModuleBackground(g, bounds);
 }
 
 void GlobalControls::resized()
@@ -335,16 +433,18 @@ SimpleMBCompAudioProcessorEditor::SimpleMBCompAudioProcessorEditor (SimpleMBComp
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     
+    setLookAndFeel(&lnf);
     //addAndMakeVisible(controlBar);
     //addAndMakeVisible(analyzer);
     addAndMakeVisible(globalControls);
-    //addAndMakeVisible(bandControls);
+    addAndMakeVisible(bandControls);
 
     setSize (550, 550);
 }
 
 SimpleMBCompAudioProcessorEditor::~SimpleMBCompAudioProcessorEditor()
 {
+    setLookAndFeel(nullptr);
 }
 
 //==============================================================================
@@ -366,8 +466,13 @@ void SimpleMBCompAudioProcessorEditor::resized()
     // subcomponents in your editor..
 
     auto bounds = getLocalBounds();
+    //controlBar.setBounds(bounds.removeFromTop(25));
+    //bandControls.setBounds(bounds.removeFromBottom(135));
+    //analyzer.setBounds(bounds.removeFromTop(250));
+    //globalControls.setBounds(bounds);
+
     controlBar.setBounds(bounds.removeFromTop(25));
-    bandControls.setBounds(bounds.removeFromBottom(135));
-    analyzer.setBounds(bounds.removeFromTop(250));
-    globalControls.setBounds(bounds);
+    globalControls.setBounds(bounds.removeFromBottom(140));
+    analyzer.setBounds(bounds.removeFromTop(230));
+    bandControls.setBounds(bounds);
 }
