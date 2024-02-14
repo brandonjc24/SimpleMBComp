@@ -8,6 +8,7 @@
   ==============================================================================
 */
 
+#include <JuceHeader.h>
 #include "CompressorBandControls.h"
 #include "Utilities.h"
 #include "../DSP/Params.h"
@@ -29,17 +30,34 @@ CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeStat
     muteButton.addListener(this);
 
     bypassButton.setName("X");
+    bypassButton.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::darkslategrey);
+    bypassButton.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::dimgrey);
+
     soloButton.setName("s");
+    soloButton.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::darkmagenta);
+    soloButton.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::dimgrey);
+
     muteButton.setName("m");
+    muteButton.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::darkgreen);
+    muteButton.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::dimgrey);
 
     addAndMakeVisible(bypassButton);
     addAndMakeVisible(soloButton);
     addAndMakeVisible(muteButton);
 
     lowBand.setName("L");
-    midBand.setName("M");
-    highBand.setName("^");
+    lowBand.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::black);
+    lowBand.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::dimgrey);
 
+    midBand.setName("M");
+    midBand.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::black);
+    midBand.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::dimgrey);
+
+    highBand.setName("^");
+    highBand.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::black);
+    highBand.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::dimgrey);
+   
+    
     auto buttonSwitcher = [safePtr = this->safePtr]()
         {
             if (auto* c = safePtr.getComponent())
@@ -53,7 +71,10 @@ CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeStat
     highBand.onClick = buttonSwitcher;
 
     lowBand.setToggleState(true, juce::NotificationType::dontSendNotification);
+
     updateAttachments();
+    updateSliderEnablements();
+    updateBandSelectButtonStates();
 
     lowBand.setRadioGroupId(1);
     midBand.setRadioGroupId(1);
@@ -106,7 +127,7 @@ void CompressorBandControls::resized()
     auto spacer = FlexItem().withWidth(4);
     auto endCap = FlexItem().withWidth(6);
 
-    //flexBox.items.add(endCap);
+
     flexBox.items.add(spacer);
     flexBox.items.add(FlexItem(bandSelectControlBox).withWidth(30));
     flexBox.items.add(spacer);
@@ -117,7 +138,7 @@ void CompressorBandControls::resized()
     flexBox.items.add(FlexItem(thresholdSlider).withFlex(1.f));
     flexBox.items.add(spacer);
     flexBox.items.add(FlexItem(ratioSlider).withFlex(1.f));
-    //flexBox.items.add(endCap);
+
     flexBox.items.add(spacer);
     flexBox.items.add(FlexItem(bandButtonControlBox).withWidth(30));
     flexBox.performLayout(bounds);
@@ -132,8 +153,83 @@ void CompressorBandControls::paint(juce::Graphics& g)
 void CompressorBandControls::buttonClicked(juce::Button* button)
 {
     updateSliderEnablements();
-
     updateSoloMuteBypassToggleStates(*button);
+    updateActiveFillBandColours(*button);
+}
+
+void CompressorBandControls::updateActiveFillBandColours(juce::Button& clickedButton)
+{
+    jassert(activeBand != nullptr);
+    DBG("button: " << clickedButton.getName());
+
+    if (clickedButton.getToggleState() == false)
+    {
+        resetActiveBandColours();
+    }
+    else
+    {
+        refreshBandButtonColours(*activeBand, clickedButton);
+    }
+  
+}
+
+void CompressorBandControls::refreshBandButtonColours(juce::Button& band, juce::Button& colourSource)
+{
+    band.setColour(juce::TextButton::ColourIds::buttonOnColourId, colourSource.findColour(juce::TextButton::ColourIds::buttonOnColourId));
+    band.setColour(juce::TextButton::ColourIds::buttonColourId,   colourSource.findColour(juce::TextButton::ColourIds::buttonOnColourId));
+    band.repaint();
+}
+
+void CompressorBandControls::resetActiveBandColours()
+{
+    activeBand->setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::black);
+    activeBand->setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::dimgrey);
+    activeBand->repaint();
+}
+
+void CompressorBandControls::updateBandSelectButtonStates()
+{
+    using namespace Params;
+
+    std::vector<std::array<Names, 3>> paramsToCheck
+    {
+        {Names::Solo_Low_Band,  Names::Mute_Low_Band,  Names::Bypass_Low_Band },
+        {Names::Solo_Mid_Band,  Names::Mute_Mid_Band,  Names::Bypass_Mid_Band },
+        {Names::Solo_High_Band, Names::Mute_High_Band, Names::Bypass_High_Band},
+    };
+
+    const auto& params = GetParams();
+
+    auto paramHelper = [&params, this](const auto& name)
+        {
+            return dynamic_cast<juce::AudioParameterBool*>(&getParam(apvts, params, name));
+        };
+
+    for (size_t i = 0; i < paramsToCheck.size(); ++i)
+    {
+        auto& list = paramsToCheck[i];
+
+        auto* bandButton = (i == 0) ? &lowBand :
+                           (i == 1) ? &midBand :
+                                      &highBand;
+
+        if (auto* solo = paramHelper(list[0]);
+            solo->get())
+        {
+            refreshBandButtonColours(*bandButton, soloButton);
+        }
+        else if (auto* mute = paramHelper(list[1]);
+            mute->get())
+        {
+            refreshBandButtonColours(*bandButton, muteButton);
+        }
+        else if (auto* bypass = paramHelper(list[2]);
+            bypass->get())
+        {
+            refreshBandButtonColours(*bandButton, bypassButton);
+        }
+    }
+
 }
 
 void CompressorBandControls::updateSliderEnablements()
@@ -143,7 +239,6 @@ void CompressorBandControls::updateSliderEnablements()
     releaseSlider.setEnabled(!disabled);
     thresholdSlider.setEnabled(!disabled);
     ratioSlider.setEnabled(!disabled);
-
 }
 
 void CompressorBandControls::updateSoloMuteBypassToggleStates(juce::Button& clickedButton)
@@ -190,49 +285,54 @@ void CompressorBandControls::updateAttachments()
 
         switch (bandType)
         {
-        case Low:
-        {
-            names = std::vector<Names>
+            case Low:
             {
-                Names::Attack_Low_band,
-                Names::Release_Low_Band,
-                Names::Threshold_Low_Band,
-                Names::Ratio_Low_Band,
-                Names::Mute_Low_Band,
-                Names::Solo_Low_Band,
-                Names::Bypass_Low_Band
-            };
-            break;
-        }
-        case Mid:
-        {
-            names = std::vector<Names>
+                names = std::vector<Names>
+                {
+                    Names::Attack_Low_band,
+                    Names::Release_Low_Band,
+                    Names::Threshold_Low_Band,
+                    Names::Ratio_Low_Band,
+                    Names::Mute_Low_Band,
+                    Names::Solo_Low_Band,
+                    Names::Bypass_Low_Band
+                };
+                activeBand = &lowBand;
+                break;
+            }
+            case Mid:
             {
-                Names::Attack_Mid_band,
-                Names::Release_Mid_Band,
-                Names::Threshold_Mid_Band,
-                Names::Ratio_Mid_Band,
-                Names::Mute_Mid_Band,
-                Names::Solo_Mid_Band,
-                Names::Bypass_Mid_Band
-            };
-            break;
-        }
-        case High:
-        {
-            names = std::vector<Names>
+                names = std::vector<Names>
+                {
+                    Names::Attack_Mid_band,
+                    Names::Release_Mid_Band,
+                    Names::Threshold_Mid_Band,
+                    Names::Ratio_Mid_Band,
+                    Names::Mute_Mid_Band,
+                    Names::Solo_Mid_Band,
+                    Names::Bypass_Mid_Band
+                };
+                activeBand = &midBand;
+                break;
+            }
+            case High:
             {
-                Names::Attack_High_band,
-                Names::Release_High_Band,
-                Names::Threshold_High_Band,
-                Names::Ratio_High_Band,
-                Names::Mute_High_Band,
-                Names::Solo_High_Band,
-                Names::Bypass_High_Band
-            };
-            break;
+                names = std::vector<Names>
+                {
+                    Names::Attack_High_band,
+                    Names::Release_High_Band,
+                    Names::Threshold_High_Band,
+                    Names::Ratio_High_Band,
+                    Names::Mute_High_Band,
+                    Names::Solo_High_Band,
+                    Names::Bypass_High_Band
+                };
+                activeBand = &highBand;
+                break;
+            }
         }
-        }
+
+        DBG("Active Band: " << activeBand->getName());
 
         enum Pos
         {
@@ -258,7 +358,7 @@ void CompressorBandControls::updateAttachments()
         thresholdSliderAttachment.reset();
         ratioSliderAttachment.reset();
         bypassButtonAttachment.reset();
-        soloButtonAttachment.release();
+        soloButtonAttachment.reset();
         muteButtonAttachment.reset();
 
         auto& attackParam = getParamHelper(Pos::Attack);
@@ -277,10 +377,11 @@ void CompressorBandControls::updateAttachments()
         ratioSlider.labels.clear();
         ratioSlider.labels.add({ 0.f, "1:1" });
         auto ratioParam = dynamic_cast<juce::AudioParameterChoice*>(&ratioParamRap);
-        ratioSlider.labels.add({ 1.f, juce::String(ratioParam->choices.getReference(ratioParam->choices.size() - 1).getIntValue()) + ":1" });
+        ratioSlider.labels.add({ 1.0f,
+            juce::String(ratioParam->choices.getReference(ratioParam->choices.size() - 1).getIntValue()) + ":1" });
         ratioSlider.changeParam(ratioParam);
 
-        auto makeAttachmentHelper = [&params, &apvts = this -> apvts](auto& attachment, const auto& name, auto& slider)
+        auto makeAttachmentHelper = [&params, &apvts = this->apvts](auto& attachment, const auto& name, auto& slider)
             {
                 makeAttachment(attachment, apvts, params, name, slider);
             };
@@ -291,6 +392,6 @@ void CompressorBandControls::updateAttachments()
         makeAttachmentHelper(ratioSliderAttachment, names[Pos::Ratio], ratioSlider);
         makeAttachmentHelper(bypassButtonAttachment, names[Pos::Bypass], bypassButton);
         makeAttachmentHelper(soloButtonAttachment, names[Pos::Solo], soloButton);
-        makeAttachmentHelper(muteButtonAttachment, names[Pos::Mute], muteButton);
+        makeAttachmentHelper(muteButtonAttachment, names[Pos::Mute], muteButton);;
 
 }

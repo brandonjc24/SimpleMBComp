@@ -37,6 +37,13 @@ private:
     void updateAttachments();
     void updateSliderEnablements();
     void updateSoloMuteBypassToggleStates(juce::Button& clickedButton);
+    void updateActiveFillBandColours(juce::Button& clickedButton);
+    void resetActiveBandColours();
+
+    static void refreshBandButtonColours(juce::Button& band, juce::Button& colourSource);
+    void updateBandSelectButtonStates();
+
+    juce::ToggleButton* activeBand = &lowBand;
 
     juce::ToggleButton bypassButton, soloButton, muteButton, lowBand, midBand, highBand;
 };
