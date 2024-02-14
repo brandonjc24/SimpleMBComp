@@ -9,8 +9,20 @@
 */
 
 #pragma once
-
 #include <JuceHeader.h>
+
+enum FFTOrder
+{
+    order2048 = 11,
+    order4096 = 12,
+    order8192 = 13
+};
+
+enum Channel
+{
+    Right, //effectively 0
+    Left //effectively 1
+};
 
 template<
     typename Attachment,
