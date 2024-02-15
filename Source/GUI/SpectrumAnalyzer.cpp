@@ -11,6 +11,7 @@
 #include "SpectrumAnalyzer.h"
 #include <JuceHeader.h>
 #include "../GUI/Utilities.h"
+#include "../DSP/Params.h"
 
 SpectrumAnalyzer::SpectrumAnalyzer(SimpleMBCompAudioProcessor& p) :
     audioProcessor(p),
@@ -22,6 +23,19 @@ SpectrumAnalyzer::SpectrumAnalyzer(SimpleMBCompAudioProcessor& p) :
     {
         param->addListener(this);
     }
+    using namespace Params;
+    const auto& paramNames = GetParams();
+
+    auto floatHelper = [&apvts = audioProcessor.apvts , &paramNames](auto& param, const auto& paramName)
+        { param = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter(paramNames.at(paramName))); };
+
+    floatHelper(lowMidXoverParam, Names::Low_Mid_Crossover_Freq);
+    floatHelper(midHighXoverParam, Names::Mid_High_Crossover_Freq);
+
+    floatHelper(lowThresholdParam, Names::Threshold_Low_Band);
+    floatHelper(midThresholdParam, Names::Threshold_Mid_Band);
+    floatHelper(highThresholdParam, Names::Threshold_High_Band);
+
 
     startTimerHz(60);
 }
@@ -60,7 +74,7 @@ void SpectrumAnalyzer::paint(juce::Graphics& g)
 {
     using namespace juce;
     // (Our component is opaque, so we must completely fill the background with a solid colour)
-    g.fillAll(juce::Colours::lightgrey); //lightgrey
+    g.fillAll(juce::Colours::white); //lightgrey
 
     auto bounds = drawModuleBackground(g, getLocalBounds());
 
@@ -71,7 +85,41 @@ void SpectrumAnalyzer::paint(juce::Graphics& g)
         drawFFTAnalysis(g, bounds);
     }
 
+    drawCrossovers(g, bounds);
     drawTextLabels(g, bounds);
+}
+
+void SpectrumAnalyzer::drawCrossovers(juce::Graphics& g, juce::Rectangle<int> bounds)
+{
+    using namespace juce;
+    bounds = getAnalysisArea(bounds);
+
+    const auto top = bounds.getY();
+    const auto bottom = bounds.getBottom();
+    const auto left = bounds.getX();
+    const auto right = bounds.getRight();
+
+    auto mapX = [left = bounds.getX(), width = bounds.getWidth()](float frequency)
+        {
+            auto normX = juce::mapFromLog10(frequency, MIN_FREQUENCY, MAX_FREQUENCY);
+            return left + width * normX;
+        };
+
+    auto xColour = juce::Colours::white;
+    auto lowMidX = mapX(lowMidXoverParam->get());
+    g.setColour(xColour);
+    g.drawVerticalLine(lowMidX, top, bottom);
+    auto midHighX = mapX(midHighXoverParam->get());
+    g.drawVerticalLine(midHighX, top, bottom);
+
+    auto mapY = [bottom, top](float db)
+        {
+            return jmap(db, NEGATIVE_INFINITY, MAX_DECIBELS, (float)bottom, (float)top);
+        };
+    g.setColour(xColour);
+    g.drawHorizontalLine(mapY(lowThresholdParam->get()), left, lowMidX);
+    g.drawHorizontalLine(mapY(midThresholdParam->get()), lowMidX, midHighX);
+    g.drawHorizontalLine(mapY(highThresholdParam->get()), midHighX, right);
 
 }
 
@@ -100,7 +148,7 @@ std::vector<float> SpectrumAnalyzer::getXs(const std::vector<float>& freqs, floa
     std::vector<float> xs;
     for (auto f : freqs)
     {
-        auto normX = juce::mapFromLog10(f, 20.f, 20000.f);
+        auto normX = juce::mapFromLog10(f, MIN_FREQUENCY, MAX_FREQUENCY);
         xs.push_back(left + width * normX);
     }
 
@@ -111,6 +159,7 @@ void SpectrumAnalyzer::drawBackgroundGrid(juce::Graphics& g, juce::Rectangle<int
 {
     using namespace juce;
     auto freqs = getFrequencies();
+    auto gridColour = juce::Colours::darkgreen;
 
     auto renderArea = getAnalysisArea(bounds);
     auto left = renderArea.getX();
@@ -121,7 +170,7 @@ void SpectrumAnalyzer::drawBackgroundGrid(juce::Graphics& g, juce::Rectangle<int
 
     auto xs = getXs(freqs, left, width);
 
-    g.setColour(Colours::darkgreen);
+    g.setColour(gridColour);
     for (auto x : xs)
     {
         g.drawVerticalLine(x, top, bottom);
@@ -133,7 +182,7 @@ void SpectrumAnalyzer::drawBackgroundGrid(juce::Graphics& g, juce::Rectangle<int
     {
         //auto y = jmap(gDb, -24.f, 24.f, float(bottom), float(top));
         auto y = jmap(gDb, NEGATIVE_INFINITY, MAX_DECIBELS, (float)bottom, (float)top);
-        g.setColour(gDb == 0.f ? Colour(0u, 172u, 1u) : Colours::darkgrey);
+        g.setColour(gDb == 0.f ? Colour(0u, 172u, 1u) : gridColour);
         g.drawHorizontalLine(y, left, right);
     }
 }
