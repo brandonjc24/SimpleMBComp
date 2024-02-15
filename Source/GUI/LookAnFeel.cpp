@@ -55,10 +55,10 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g,
         r.setSize(strWidth + 4, rswl->getTextHeight() + 2);
         r.setCentre(center);
 
-        g.setColour(Colours::slategrey);
+        g.setColour(Colours::slategrey); // rotary label back colours
         g.fillRect(r);
 
-        g.setColour(Colours::black);
+        g.setColour(Colours::black); // label text
         g.drawFittedText(text, r.toNearestInt(), juce::Justification::centred, 1);
     }
 
