@@ -15,7 +15,7 @@
 
 CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeState& apv) :
     apvts(apv),
-    attackSlider(nullptr, " ms", "X"),
+    attackSlider(nullptr, " ms", "A"),
     releaseSlider(nullptr, " ms", "R"),
     thresholdSlider(nullptr, " dB", "T"),
     ratioSlider(nullptr, " ")
@@ -29,12 +29,12 @@ CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeStat
     soloButton.addListener(this);
     muteButton.addListener(this);
 
-    bypassButton.setName("X");
+    bypassButton.setName("x");
     bypassButton.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::darkslategrey);
     bypassButton.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::dimgrey);
 
     soloButton.setName("s");
-    soloButton.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::darkmagenta);
+    soloButton.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::darkorchid);
     soloButton.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::dimgrey);
 
     muteButton.setName("m");
@@ -155,6 +155,19 @@ void CompressorBandControls::buttonClicked(juce::Button* button)
     updateSliderEnablements();
     updateSoloMuteBypassToggleStates(*button);
     updateActiveFillBandColours(*button);
+}
+
+void CompressorBandControls::toggleAllBands(bool shouldByBypassed)
+{
+    std::vector<Component*> bands{ &lowBand, &midBand, &highBand };
+
+    for (auto* band : bands) {
+        band->setColour(juce::TextButton::ColourIds::buttonOnColourId, shouldByBypassed ? bypassButton.findColour(juce::TextButton::ColourIds::buttonOnColourId) : juce::Colours::black);
+
+        band->setColour(juce::TextButton::ColourIds::buttonColourId, shouldByBypassed ? bypassButton.findColour(juce::TextButton::ColourIds::buttonOnColourId) : juce::Colours::dimgrey);
+
+        band->repaint();
+    }
 }
 
 void CompressorBandControls::updateActiveFillBandColours(juce::Button& clickedButton)

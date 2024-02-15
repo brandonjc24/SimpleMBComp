@@ -34,15 +34,16 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g,
         Path p;
 
         Rectangle<float> r;
-        r.setLeft(center.getX() - 2);
-        r.setRight(center.getX() + 2);
+        r.setLeft(center.getX() - 1);
+        r.setRight(center.getX() + 1);
         r.setTop(bounds.getY());
-        r.setBottom(center.getY() - rswl->getTextHeight() * 1.5);
+        r.setBottom(center.getY() - rswl->getTextHeight() * 2.5);
 
         p.addRoundedRectangle(r, 1.f);
         jassert(rotaryStartAngle < rotaryEndAngle);
 
         auto sliderAngRad = jmap(sliderPosProportional, 0.f, 1.f, rotaryStartAngle, rotaryEndAngle);
+
 
         p.applyTransform(AffineTransform().rotated(sliderAngRad, center.getX(), center.getY()));
 
@@ -52,10 +53,10 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g,
         auto text = rswl->getDisplayString();
         auto strWidth = g.getCurrentFont().getStringWidth(text);
 
-        r.setSize(strWidth + 4, rswl->getTextHeight() + 2);
+        r.setSize(strWidth , rswl->getTextHeight() + 2);
         r.setCentre(center);
 
-        g.setColour(Colours::slategrey); // rotary label back colours
+        g.setColour(Colours::transparentBlack); // rotary label back colours
         g.fillRect(r);
 
         g.setColour(Colours::black); // label text
@@ -122,12 +123,11 @@ void LookAndFeel::drawToggleButton(juce::Graphics& g,
         auto buttonIsOn = toggleButton.getToggleState();
 
         const int cornerSize = 4;
-        //g.setColour(buttonIsOn ? juce::Colours::black : juce::Colours::dimgrey);
         g.setColour(buttonIsOn ? toggleButton.findColour(TextButton::ColourIds::buttonOnColourId) : toggleButton.findColour(TextButton::ColourIds::buttonColourId));
 
         g.fillRect(bounds.toFloat());
 
-        g.setColour(buttonIsOn ? juce::Colours::white : juce::Colours::black);
+        g.setColour(buttonIsOn ? juce::Colours::lightgrey : juce::Colours::black);
         g.drawRect(bounds.toFloat(), 1);
         g.drawFittedText(toggleButton.getName(), bounds, juce::Justification::centred, 2);
 
