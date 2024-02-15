@@ -22,10 +22,11 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g,
     using namespace juce;
 
     auto bounds = Rectangle<float>(x, y, width, height);
+    auto enabled = slider.isEnabled();
 
-    g.setColour(Colours::slategrey); // rotary slider fill
+    g.setColour(enabled ? ColorScheme::getSliderFillColor()   : ColorScheme::getSliderDisabledColor()); // rotary slider fill
     g.fillEllipse(bounds);
-    g.setColour(Colours::black); // rotary slider outline
+    g.setColour(enabled ? ColorScheme::getSliderBorderColor() : ColorScheme::getSliderBorderColor()); // rotary slider outline
     g.drawEllipse(bounds, 2.f);
 
     if (auto* rswl = dynamic_cast<RotarySliderWithLabels*>(&slider))
