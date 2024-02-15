@@ -60,13 +60,13 @@ void SpectrumAnalyzer::drawFFTAnalysis(juce::Graphics& g, juce::Rectangle<int> b
     auto leftChannelFFTPath = leftPathProducer.getPath();
     leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), 0)); // responseArea.getY()));
 
-    g.setColour(juce::Colours::darkmagenta); // g.setColour(Colour(97u, 18u, 167u))-
+    g.setColour(juce::Colours::white); // g.setColour(Colour(97u, 18u, 167u))-
     g.strokePath(leftChannelFFTPath, PathStrokeType(1.f));
 
     auto rightChannelFFTPath = rightPathProducer.getPath();
     rightChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), 0)); // responseArea.getY()));
 
-    g.setColour(juce::Colours::darkolivegreen); //g.setColour(Colour(215u, 201u, 134u));
+    g.setColour(juce::Colours::white); //g.setColour(Colour(215u, 201u, 134u));
     g.strokePath(rightChannelFFTPath, PathStrokeType(1.f));
 }
 
@@ -105,6 +105,7 @@ void SpectrumAnalyzer::drawCrossovers(juce::Graphics& g, juce::Rectangle<int> bo
             return left + width * normX;
         };
 
+
     auto xColour = juce::Colours::white;
     auto lowMidX = mapX(lowMidXoverParam->get());
     g.setColour(xColour);
@@ -116,11 +117,36 @@ void SpectrumAnalyzer::drawCrossovers(juce::Graphics& g, juce::Rectangle<int> bo
         {
             return jmap(db, NEGATIVE_INFINITY, MAX_DECIBELS, (float)bottom, (float)top);
         };
+
+    auto zeroDb = mapY(0.f);
+    g.setColour(juce::Colours::red.withAlpha(0.3f));
+    g.fillRect(Rectangle<float>::leftTopRightBottom(left, zeroDb, lowMidX, mapY(lowBandGR)));
+    g.fillRect(Rectangle<float>::leftTopRightBottom(lowMidX, zeroDb, midHighX, mapY(midBandGR)));
+    g.fillRect(Rectangle<float>::leftTopRightBottom(midHighX, zeroDb, right, mapY(highBandGR)));
+
+
     g.setColour(xColour);
     g.drawHorizontalLine(mapY(lowThresholdParam->get()), left, lowMidX);
     g.drawHorizontalLine(mapY(midThresholdParam->get()), lowMidX, midHighX);
     g.drawHorizontalLine(mapY(highThresholdParam->get()), midHighX, right);
+}
 
+void SpectrumAnalyzer::update(const std::vector<float>& values)
+{
+    enum
+    {
+        LowBandIn,
+        LowBandOut,
+        MidBandIn,
+        MidBandOut,
+        HighBandIn,
+        HighBandOut
+    };
+    lowBandGR = values[LowBandOut] - values[LowBandIn];
+    midBandGR = values[MidBandOut] - values[MidBandIn];
+    highBandGR = values[HighBandOut] - values[HighBandIn];
+
+    repaint();
 }
 
 std::vector<float> SpectrumAnalyzer::getFrequencies()

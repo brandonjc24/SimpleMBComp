@@ -9,7 +9,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "GUI/PathProducer.h"
-
+#include "DSP/CompressorBand.h"
 
 //==============================================================================
 SimpleMBCompAudioProcessorEditor::SimpleMBCompAudioProcessorEditor (SimpleMBCompAudioProcessor& p)
@@ -24,6 +24,8 @@ SimpleMBCompAudioProcessorEditor::SimpleMBCompAudioProcessorEditor (SimpleMBComp
     addAndMakeVisible(bandControls);
 
     setSize (550, 550);
+
+    startTimerHz(60);
 }
 
 SimpleMBCompAudioProcessorEditor::~SimpleMBCompAudioProcessorEditor()
@@ -47,4 +49,19 @@ void SimpleMBCompAudioProcessorEditor::resized()
     globalControls.setBounds(bounds.removeFromBottom(140));
     analyzer.setBounds(bounds.removeFromTop(230));
     bandControls.setBounds(bounds);
+}
+
+void SimpleMBCompAudioProcessorEditor::timerCallback()
+{
+    std::vector<float> values
+    {
+        audioProcessor.lowBandComp.getRMSInputLeveldB(),
+        audioProcessor.lowBandComp.getRMSOutputLeveldB(),
+        audioProcessor.midBandComp.getRMSInputLeveldB(),
+        audioProcessor.midBandComp.getRMSOutputLeveldB(),
+        audioProcessor.highBandComp.getRMSInputLeveldB(),
+        audioProcessor.highBandComp.getRMSOutputLeveldB()
+    };
+
+    analyzer.update(values);
 }
