@@ -178,12 +178,11 @@ void SimpleMBCompAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     leftChannelFifo.prepare(samplesPerBlock);
     rightChannelFifo.prepare(samplesPerBlock);
 
-    osc.initialise([](float x) {return std::sin(x); });
-    osc.prepare(spec);
-    osc.setFrequency(getSampleRate() / ((2 << FFTOrder::order2048) - 1) * 50);
-
-    gain.prepare(spec);
-    gain.setGainDecibels(-12.f);
+    //osc.initialise([](float x) {return std::sin(x); });
+    //osc.prepare(spec);
+    //osc.setFrequency(getSampleRate() / ((2 << FFTOrder::order2048) - 1) * 50);
+    //gain.prepare(spec);
+    //gain.setGainDecibels(-12.f);
 }
 
 void SimpleMBCompAudioProcessor::releaseResources()
@@ -277,7 +276,7 @@ void SimpleMBCompAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     updateState();
 
-    if (true)
+    if (false) //testing
     {
         buffer.clear();
         auto block = juce::dsp::AudioBlock<float>(buffer);
@@ -291,7 +290,6 @@ void SimpleMBCompAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     rightChannelFifo.update(buffer);
 
     applyGain(buffer, inputGain);
-
     splitBands(buffer);
 
     for (size_t i = 0; i < filterBuffers.size(); ++i)
