@@ -9,6 +9,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "DSP/Params.h"
+#include "GUI/Utilities.h"
 
 //==============================================================================
 SimpleMBCompAudioProcessor::SimpleMBCompAudioProcessor()
@@ -178,11 +179,11 @@ void SimpleMBCompAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     leftChannelFifo.prepare(samplesPerBlock);
     rightChannelFifo.prepare(samplesPerBlock);
 
-    //osc.initialise([](float x) {return std::sin(x); });
-    //osc.prepare(spec);
-    //osc.setFrequency(getSampleRate() / ((2 << FFTOrder::order2048) - 1) * 50);
-    //gain.prepare(spec);
-    //gain.setGainDecibels(-12.f);
+    osc.initialise([](float x) {return std::sin(x); });
+    osc.prepare(spec);
+    osc.setFrequency(getSampleRate() / ((2 << FFTOrder::order2048) - 1) * 50);
+    gain.prepare(spec);
+    gain.setGainDecibels(-12.f);
 }
 
 void SimpleMBCompAudioProcessor::releaseResources()
@@ -392,7 +393,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleMBCompAudioProcessor::
         sa.add(juce::String(choice, 1));
 
     auto gainRange = NormalisableRange<float>(-24.f, 24.f, 0.5f, 1.f);
-    auto thresholdRange = NormalisableRange<float>(-60, 12, 1, 1);
+    auto thresholdRange = NormalisableRange<float>(MIN_THRESHOLD, MAX_DECIBELS, 1, 1);
     auto attackRange = NormalisableRange<float>(5, 500, 1, 1);
     auto releaseRange = NormalisableRange<float>(5, 500, 1, 1) ;
 
